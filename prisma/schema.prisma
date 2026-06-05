@@ -1,0 +1,439 @@
+// FightReady — Combat athlete performance SaaS
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  ATHLETE
+  COACH
+  ADMIN
+}
+
+enum CombatSport {
+  MMA
+  BOXING
+  MUAY_THAI
+  KICKBOXING
+  BJJ
+  WRESTLING
+  OTHER
+}
+
+enum WeightUnit {
+  KG
+  LBS
+}
+
+enum MealType {
+  BREAKFAST
+  LUNCH
+  DINNER
+  SNACK
+  PRE_WORKOUT
+  POST_WORKOUT
+}
+
+enum FightCampStatus {
+  PLANNING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum FightResult {
+  WIN
+  LOSS
+  DRAW
+  NC
+  SCHEDULED
+}
+
+enum TrainingType {
+  STRENGTH
+  CONDITIONING
+  TECHNICAL
+  SPARRING
+  CARDIO
+  RECOVERY
+  OTHER
+}
+
+enum PerformanceMetricType {
+  VO2_MAX
+  RESTING_HR
+  HRV
+  POWER
+  SPEED
+  FLEXIBILITY
+  BODY_FAT
+  CUSTOM
+}
+
+enum NotificationType {
+  SYSTEM
+  COACH
+  CAMP
+  FIGHT
+  REMINDER
+  AI
+}
+
+enum CoachAthleteStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+}
+
+// ---------------------------------------------------------------------------
+// Core identity
+// ---------------------------------------------------------------------------
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String   @unique
+  firstName String?
+  lastName  String?
+  imageUrl  String?
+  role      UserRole @default(ATHLETE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  athleteProfile  AthleteProfile?
+  coach           Coach?
+  admin           Admin?
+  notifications   Notification[]
+  aiConversations AiConversation[]
+
+  @@index([role])
+  @@map("users")
+}
+
+model AthleteProfile {
+  id              String      @id @default(cuid())
+  userId          String      @unique
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sport           CombatSport @default(MMA)
+  weightClass     String?
+  heightCm        Float?
+  dateOfBirth     DateTime?
+  targetWeightKg  Float?
+  currentWeightKg Float?
+  gymAffiliation  String?
+  bio             String?     @db.Text
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  weightLogs         WeightLog[]
+  nutritionLogs      NutritionLog[]
+  hydrationLogs      HydrationLog[]
+  supplements        Supplement[]
+  fightCamps         FightCamp[]
+  fights             Fight[]
+  performanceMetrics PerformanceMetric[]
+  sleepLogs          SleepLog[]
+  trainingSessions   TrainingSession[]
+  coachAthletes      CoachAthlete[]
+
+  @@map("athlete_profiles")
+}
+
+model Coach {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bio         String?  @db.Text
+  specialties String[] @default([])
+  verified    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  coachAthletes CoachAthlete[]
+
+  @@map("coaches")
+}
+
+model CoachAthlete {
+  id               String             @id @default(cuid())
+  coachId          String
+  coach            Coach              @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  athleteProfileId String
+  athleteProfile   AthleteProfile     @relation(fields: [athleteProfileId], references: [id], onDelete: Cascade)
+  status           CoachAthleteStatus @default(PENDING)
+  invitedAt        DateTime           @default(now())
+  acceptedAt       DateTime?
+  notes            String?            @db.Text
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@unique([coachId, athleteProfileId])
+  @@index([athleteProfileId])
+  @@index([status])
+  @@map("coach_athletes")
+}
+
+model Admin {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permissions Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("admins")
+}
+
+// ---------------------------------------------------------------------------
+// Weight & body composition
+// ---------------------------------------------------------------------------
+
+model WeightLog {
+  id               String         @id @default(cuid())
+  athleteProfileId String
+  athleteProfile   AthleteProfile @relation(fields: [athleteProfileId], references: [id], onDelete: Cascade)
+  weight           Float
+  unit             WeightUnit     @default(KG)
+  bodyFatPercent   Float?
+  loggedAt         DateTime       @default(now())
+  notes            String?        @db.Text
+  createdAt        DateTime       @default(now())
+
+  @@index([athleteProfileId, loggedAt])
+  @@map("weight_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Nutrition & hydration
+// ---------------------------------------------------------------------------
+
+model NutritionLog {
+  id               String         @id @default(cuid())
+  athleteProfileId String
+  athleteProfile   AthleteProfile @relation(fields: [athleteProfileId], references: [id], onDelete: Cascade)
+  date             DateTime       @db.Date
+  totalCalories    Int?
+  proteinG         Float?
+  carbsG           Float?
+  fatG             Float?
+  notes            String?        @db.Text
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  meals Meal[]
+
+  @@unique([athleteProfileId, date])
+  @@index([athleteProfileId, date])
+  @@map("nutrition_logs")
+}
+
+model Meal {
+  id             String        @id @default(cuid())
+  nutritionLogId String?
+  nutritionLog   NutritionLog? @relation(fields: [nutritionLogId], references: [id], onDelete: SetNull)
+  name           String
+  mealType       MealType
+  calories       Int?
+  proteinG       Float?
+  carbsG         Float?
+  fatG           Float?
+  loggedAt       DateTime      @default(now())
+  notes          String?       @db.Text
+  createdAt      DateTime      @default(now())
+
+  @@index([nutritionLogId])
+  @@index([loggedAt])
+  @@map("meals")
+}
+
+model HydrationLog {
+  id               String         @id @default(cuid())
+  athleteProfileId String
+  athleteProfile   AthleteProfile @relation(fields: [athleteProfileId], references: [id], onDelete: Cascade)
+  amountMl         Int
+  loggedAt         DateTime       @default(now())
+  notes            String?        @db.Text
+  createdAt        DateTime       @default(now())
+
+  @@index([athleteProfileId, loggedAt])
+  @@map("hydration_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Supplements
+// ---------------------------------------------------------------------------
+
+model Supplement {
+  id               String         @id @default(cuid())
+  athleteProfileId String
+  athleteProfile   AthleteProfile @relation(fields: [athleteProfileId], references: [id], onDelete: Cascade)
+  name             String
+  dosage           String?
+  frequency        String?
+  active           Boolean        @default(true)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  logs SupplementLog[]
+
+  @@index([athleteProfileId])
+  @@map("supplements")
+}
+
+model SupplementLog {
+  id           String     @id @default(cuid())
+  supplementId String
+  supplement   Supplement @relation(fields: [supplementId], references: [id], onDelete: Cascade)
+  takenAt      DateTime   @default(now())
+  dosage       String?
+  notes        String?    @db.Text
+  createdAt    DateTime   @default(now())
+
+  @@index([supplementId, takenAt])
+  @@map("supplement_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Fight camp & competition
+// ---------------------------------------------------------------------------
+
+model FightCamp {
+  id               String          @id @default(cuid())
+  athleteProfileId String
+  athleteProfile   AthleteProfile  @relation(fields: [athleteProfileId], references: [id], onDelete: Cascade)
+  name             String
+  startDate        DateTime        @db.Date
+  endDate          DateTime?       @db.Date
+  targetWeightKg   Float?
+  status           FightCampStatus @default(PLANNING)
+  notes            String?         @db.Text
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  fights Fight[]
+
+  @@index([athleteProfileId, status])
+  @@map("fight_camps")
+}
+
+model Fight {
+  id               String         @id @default(cuid())
+  athleteProfileId String
+  athleteProfile   AthleteProfile @relation(fields: [athleteProfileId], references: [id], onDelete: Cascade)
+  fightCampId      String?
+  fightCamp        FightCamp?     @relation(fields: [fightCampId], references: [id], onDelete: SetNull)
+  opponentName     String?
+  eventName        String?
+  location         String?
+  scheduledAt      DateTime?
+  weighInKg        Float?
+  result           FightResult    @default(SCHEDULED)
+  method           String?
+  round            Int?
+  notes            String?        @db.Text
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([athleteProfileId, scheduledAt])
+  @@index([fightCampId])
+  @@map("fights")
+}
+
+// ---------------------------------------------------------------------------
+// Performance, sleep & training
+// ---------------------------------------------------------------------------
+
+model PerformanceMetric {
+  id               String                @id @default(cuid())
+  athleteProfileId String
+  athleteProfile   AthleteProfile        @relation(fields: [athleteProfileId], references: [id], onDelete: Cascade)
+  type             PerformanceMetricType
+  label            String?
+  value            Float
+  unit             String?
+  recordedAt       DateTime              @default(now())
+  notes            String?               @db.Text
+  createdAt        DateTime              @default(now())
+
+  @@index([athleteProfileId, type, recordedAt])
+  @@map("performance_metrics")
+}
+
+model SleepLog {
+  id               String         @id @default(cuid())
+  athleteProfileId String
+  athleteProfile   AthleteProfile @relation(fields: [athleteProfileId], references: [id], onDelete: Cascade)
+  hoursSlept       Float
+  quality          Int? // 1–10
+  bedTime          DateTime?
+  wakeTime         DateTime?
+  loggedAt         DateTime       @default(now())
+  notes            String?        @db.Text
+  createdAt        DateTime       @default(now())
+
+  @@index([athleteProfileId, loggedAt])
+  @@map("sleep_logs")
+}
+
+model TrainingSession {
+  id               String         @id @default(cuid())
+  athleteProfileId String
+  athleteProfile   AthleteProfile @relation(fields: [athleteProfileId], references: [id], onDelete: Cascade)
+  type             TrainingType
+  title            String?
+  durationMin      Int?
+  intensity        Int? // 1–10
+  caloriesBurned   Int?
+  startedAt        DateTime       @default(now())
+  endedAt          DateTime?
+  notes            String?        @db.Text
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([athleteProfileId, startedAt])
+  @@map("training_sessions")
+}
+
+// ---------------------------------------------------------------------------
+// Notifications & AI
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType @default(SYSTEM)
+  title     String
+  body      String           @db.Text
+  read      Boolean          @default(false)
+  readAt    DateTime?
+  metadata  Json?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, read, createdAt])
+  @@map("notifications")
+}
+
+model AiConversation {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String?
+  messages  Json     @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, updatedAt])
+  @@map("ai_conversations")
+}

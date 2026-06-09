@@ -31,8 +31,8 @@ export default function Home() {
       <nav className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 sticky top-0 bg-black/90 backdrop-blur z-50">
         <span className="text-xl font-bold text-red-500 tracking-tight">FightReady</span>
         <div className="flex gap-3">
-          <Link href="/sign-in" className="px-4 py-2 text-sm text-zinc-300 hover:text-white transition">Sign In</Link>
-          <Link href="/sign-up" className="px-4 py-2 text-sm bg-red-600 hover:bg-red-500 rounded-lg font-semibold transition">Start Free</Link>
+          <Link href="/dashboard" className="px-4 py-2 text-sm text-zinc-300 hover:text-white transition">Sign In</Link>
+          <Link href="/dashboard" className="px-4 py-2 text-sm bg-red-600 hover:bg-red-500 rounded-lg font-semibold transition">Start Free</Link>
         </div>
       </nav>
 
@@ -46,7 +46,7 @@ export default function Home() {
           The all-in-one fight camp platform for combat athletes. Track weight cuts, nutrition, hydration, supplements, and fight preparation with AI-powered insights.
         </p>
         <div className="flex gap-4 justify-center flex-wrap">
-          <Link href="/sign-up" className="px-8 py-3 bg-red-600 hover:bg-red-500 rounded-lg font-bold text-lg transition">Start Free</Link>
+          <Link href="/dashboard" className="px-8 py-3 bg-red-600 hover:bg-red-500 rounded-lg font-bold text-lg transition">Start Free</Link>
           <button className="px-8 py-3 border border-zinc-700 hover:border-zinc-500 rounded-lg font-bold text-lg transition">Watch Demo</button>
         </div>
       </section>
@@ -94,7 +94,7 @@ export default function Home() {
                   <li key={f} className="text-zinc-300 text-sm flex gap-2"><span className="text-red-400">✓</span>{f}</li>
                 ))}
               </ul>
-              <Link href="/sign-up" className={`block text-center py-2 rounded-lg font-bold transition ${p.highlight ? "bg-red-600 hover:bg-red-500" : "border border-zinc-700 hover:border-zinc-500"}`}>
+              <Link href="/dashboard" className={`block text-center py-2 rounded-lg font-bold transition ${p.highlight ? "bg-red-600 hover:bg-red-500" : "border border-zinc-700 hover:border-zinc-500"}`}>
                 Get Started
               </Link>
             </div>
